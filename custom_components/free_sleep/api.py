@@ -7,6 +7,7 @@ status and settings, as well as updating device configurations.
 
 from asyncio import Lock
 from collections.abc import Mapping
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from aiohttp import ClientResponse, ClientSession
@@ -132,6 +133,7 @@ class FreeSleepAPI:
   async def fetch_vitals(self, side: PodSide) -> dict[str, Any]:
     """
     Fetch the current vitals for a specific side of the Free Sleep device.
+    Only averages data from the last 10 minutes to reflect current state.
 
     :param side: The side of the pod ("left" or "right").
     :return: A dictionary containing the side vitals.
@@ -139,7 +141,8 @@ class FreeSleepAPI:
     url = f'{self.host}{VITALS_SUMMARY_ENDPOINT}'
     log.debug(f'Fetching vitals for side "{side}" from device at "{url}".')
 
-    return await self.get(url, params={'side': side})
+    start_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    return await self.get(url, params={'side': side, 'startTime': start_time})
 
   async def fetch_presence(self) -> dict[str, Any]:
     """

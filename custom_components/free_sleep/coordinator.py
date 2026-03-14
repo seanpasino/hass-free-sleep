@@ -4,7 +4,7 @@ which is responsible for fetching and updating the device state periodically.
 """
 
 from asyncio import gather
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from logging import Logger
 from typing import Any, TypedDict
 
@@ -65,6 +65,27 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
     )
 
     self.api = api
+    self._presence_false_since: dict[str, datetime | None] = {
+      'left': None,
+      'right': None,
+    }
+
+  def is_vitals_valid(self, side: str, stale_after_minutes: int = 5) -> bool:
+    """
+    Returns True if vitals should be displayed for the given side.
+    Returns False if presence has been absent for more than stale_after_minutes,
+    which causes sensors to report None instead of stale historical values.
+    """
+    if self.data is None:
+      return False
+    present = self.data['presence'].get(side, {}).get('present', False)
+    if present:
+      return True
+    since = self._presence_false_since.get(side)
+    if since is None:
+      return False
+    elapsed_minutes = (datetime.now(timezone.utc) - since).total_seconds() / 60
+    return elapsed_minutes < stale_after_minutes
 
   async def _async_update_data(self) -> PodState:
     """
@@ -118,6 +139,15 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       'left': presence.get('left', {}),
       'right': presence.get('right', {}),
     }
+
+    # Track when each side's presence transitions to False so sensors can
+    # return None after a configurable absence period instead of stale data.
+    for side in ('left', 'right'):
+      present = presence_dict[side].get('present', False)
+      if present:
+        self._presence_false_since[side] = None
+      elif self._presence_false_since[side] is None:
+        self._presence_false_since[side] = datetime.now(timezone.utc)
 
     return PodState(
       services=services,

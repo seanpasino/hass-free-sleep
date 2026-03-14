@@ -219,11 +219,14 @@ class FreeSleepSideSensor(
     """
     Get the native value of the sensor.
 
-    This returns the result of the get_value function defined in the sensor
-    description, if it exists.
+    Returns None if presence has been absent for more than 5 minutes to
+    avoid displaying stale biometric data when no one is in bed.
 
-    :return: The sensor value.
+    :return: The sensor value, or None if presence is absent.
     """
+    if not self.coordinator.is_vitals_valid(self.side.type):
+      return None
+
     if self.entity_description.get_value:
       data = self.side.get_side_data(self.coordinator.data)
       return self.entity_description.get_value(data)
