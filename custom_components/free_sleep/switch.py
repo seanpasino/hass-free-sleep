@@ -119,6 +119,26 @@ POD_SIDE_SWITCHES: tuple[FreeSleepSideSwitchDescription, ...] = (
     get_value=lambda data: data['settings']['awayMode'],
     set_value=lambda pod, side, value: side.set_away_mode(value),  # noqa: ARG005
   ),
+  FreeSleepSideSwitchDescription(
+    name='Disable Alarm Tonight',
+    key='disable_alarm_tonight',
+    translation_key='disable_alarm_tonight',
+    device_class=SwitchDeviceClass.SWITCH,
+    on_icon='mdi:alarm-off',
+    off_icon='mdi:alarm',
+    get_value=lambda data: data['settings'].get('alarmOverrideDisabled', False),
+    set_value=lambda pod, side, value: side.set_alarm_override_disabled(value),  # noqa: ARG005
+  ),
+  FreeSleepSideSwitchDescription(
+    name='Disable Temp Schedule Tonight',
+    key='disable_temp_schedule_tonight',
+    translation_key='disable_temp_schedule_tonight',
+    device_class=SwitchDeviceClass.SWITCH,
+    on_icon='mdi:thermometer-off',
+    off_icon='mdi:thermometer',
+    get_value=lambda data: data['settings'].get('tempScheduleOverrideDisabled', False),
+    set_value=lambda pod, side, value: side.set_temp_schedule_override_disabled(value),  # noqa: ARG005
+  ),
 )
 
 

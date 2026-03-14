@@ -39,7 +39,11 @@ class Pod:
     self.coordinator = coordinator
     self.api = FreeSleepAPI(host, async_get_clientsession(hass))
 
-    name = coordinator.data['status']['hubVersion']
+    name = (
+      coordinator.data['status'].get('hubVersion')
+      or coordinator.data['status'].get('freeSleep', {}).get('version')
+      or 'Free Sleep Pod'
+    )
 
     self.id = entry.entry_id
     self.model = name
@@ -149,6 +153,19 @@ class Pod:
     data['status']['isPriming'] = True
     self.coordinator.async_set_updated_data(data)
 
+  async def set_temperature_format(self, format: str) -> None:
+    """
+    Set the temperature display format for the Free Sleep Pod device.
+
+    :param format: 'celsius' or 'fahrenheit'.
+    """
+    json_data = {'temperatureFormat': format}
+    await self.api.update_settings(json_data)
+
+    data = self.coordinator.data
+    data['settings']['temperatureFormat'] = format
+    self.coordinator.async_set_updated_data(data)
+
   async def reboot(self) -> None:
     """Reboot the Free Sleep Pod device."""
     await self.api.run_jobs(['reboot'])
@@ -177,7 +194,7 @@ class Side:
     self.pod = pod
     self.type = side
     self.id = f'{pod.id}_{side}'
-    self.name = f'{pod.model} {coordinator.data["settings"][side]["name"]}'
+    self.name = f'{pod.model} {coordinator.data["settings"].get(side, {}).get("name", side.capitalize())}'
 
   @property
   def device_info(self) -> dict:
@@ -207,6 +224,8 @@ class Side:
       'settings': data['settings'][self.type],
       'vitals': data['vitals'][self.type],
       'presence': data['presence'][self.type],
+      'sleep': data['sleep'].get(self.type),
+      'schedule': data['schedules'].get(self.type, {}),
     }
 
   async def set_active(self, active: bool) -> None:
@@ -246,6 +265,32 @@ class Side:
 
     data = self.coordinator.data
     data['settings'][self.type]['awayMode'] = enabled
+    self.coordinator.async_set_updated_data(data)
+
+  async def set_alarm_override_disabled(self, disabled: bool) -> None:
+    """
+    Disable or re-enable tonight's alarm for this side.
+
+    :param disabled: True to disable tonight's alarm, False to re-enable.
+    """
+    json_data = {self.type: {'alarmOverrideDisabled': disabled}}
+    await self.pod.api.update_settings(json_data)
+
+    data = self.coordinator.data
+    data['settings'][self.type]['alarmOverrideDisabled'] = disabled
+    self.coordinator.async_set_updated_data(data)
+
+  async def set_temp_schedule_override_disabled(self, disabled: bool) -> None:
+    """
+    Disable or re-enable tonight's temperature schedule for this side.
+
+    :param disabled: True to disable tonight's schedule, False to re-enable.
+    """
+    json_data = {self.type: {'tempScheduleOverrideDisabled': disabled}}
+    await self.pod.api.update_settings(json_data)
+
+    data = self.coordinator.data
+    data['settings'][self.type]['tempScheduleOverrideDisabled'] = disabled
     self.coordinator.async_set_updated_data(data)
 
   class ScheduleOptions(TypedDict):

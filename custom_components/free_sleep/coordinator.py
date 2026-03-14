@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import FreeSleepAPI
-from .constants import PodSide
+from .constants import PodSide, VITALS_STALE_MINUTES
 from .logger import log
 
 
@@ -29,6 +29,9 @@ class PodState(TypedDict):
   status: dict[str, Any]
   vitals: dict[PodSide, Any]
   presence: dict[PodSide, Any]
+  sleep: dict[PodSide, Any]         # Most recent sleep record per side (or None)
+  server_status: dict[str, Any]     # Internal service health statuses
+  schedules: dict[PodSide, Any]     # Full weekly schedule per side
 
 
 class FirmwareState(TypedDict):
@@ -70,7 +73,7 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       'right': None,
     }
 
-  def is_vitals_valid(self, side: str, stale_after_minutes: int = 5) -> bool:
+  def is_vitals_valid(self, side: str, stale_after_minutes: int = VITALS_STALE_MINUTES) -> bool:
     """
     Returns True if vitals should be displayed for the given side.
     Returns False if presence has been absent for more than stale_after_minutes,
@@ -149,12 +152,35 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       elif self._presence_false_since[side] is None:
         self._presence_false_since[side] = datetime.now(timezone.utc)
 
+    # Fetch optional data with graceful fallback — failures here do not
+    # prevent the core coordinator data from being returned.
+    optional = await gather(
+      self.api.fetch_sleep('left'),
+      self.api.fetch_sleep('right'),
+      self.api.fetch_server_status(),
+      self.api.fetch_schedules(),
+      return_exceptions=True,
+    )
+    sleep_left_raw, sleep_right_raw, server_status_raw, schedules_raw = optional
+
+    def _safe(val: Any, default: Any) -> Any:
+      return default if isinstance(val, BaseException) else val
+
+    sleep_left_list: list = _safe(sleep_left_raw, [])
+    sleep_right_list: list = _safe(sleep_right_raw, [])
+
     return PodState(
       services=services,
       settings=settings,
       status=status,
       vitals=vitals_dict,
       presence=presence_dict,
+      sleep={
+        'left': sleep_left_list[-1] if sleep_left_list else None,
+        'right': sleep_right_list[-1] if sleep_right_list else None,
+      },
+      server_status=_safe(server_status_raw, {}),
+      schedules=_safe(schedules_raw, {}),
     )
 
 

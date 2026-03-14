@@ -15,8 +15,15 @@ SETTINGS_ENDPOINT: Final = '/api/settings'
 SCHEDULES_ENDPOINT: Final = '/api/schedules'
 VITALS_SUMMARY_ENDPOINT: Final = '/api/metrics/vitals/summary'
 PRESENCE_ENDPOINT: Final = '/api/metrics/presence'
+SLEEP_ENDPOINT: Final = '/api/metrics/sleep'
+SERVER_STATUS_ENDPOINT: Final = '/api/serverStatus'
 
 SERVER_INFO_URL: Final = 'https://raw.githubusercontent.com/throwaway31265/free-sleep/refs/heads/main/server/src/serverInfo.json'
+
+# How many minutes of recent vitals to average (passed as startTime to /vitals/summary)
+VITALS_WINDOW_MINUTES: Final = 10
+# How many minutes of absence before vitals sensors return None
+VITALS_STALE_MINUTES: Final = 5
 
 EIGHT_SLEEP_MIN_TEMPERATURE_F: Final = 55
 EIGHT_SLEEP_MAX_TEMPERATURE_F: Final = 110

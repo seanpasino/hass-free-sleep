@@ -19,9 +19,12 @@ from .constants import (
   PRESENCE_ENDPOINT,
   SCHEDULES_ENDPOINT,
   SERVER_INFO_URL,
+  SERVER_STATUS_ENDPOINT,
   SERVICES_ENDPOINT,
   SETTINGS_ENDPOINT,
+  SLEEP_ENDPOINT,
   VITALS_SUMMARY_ENDPOINT,
+  VITALS_WINDOW_MINUTES,
   PodSide,
 )
 from .logger import log
@@ -141,8 +144,44 @@ class FreeSleepAPI:
     url = f'{self.host}{VITALS_SUMMARY_ENDPOINT}'
     log.debug(f'Fetching vitals for side "{side}" from device at "{url}".')
 
-    start_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    start_time = (datetime.now(timezone.utc) - timedelta(minutes=VITALS_WINDOW_MINUTES)).isoformat()
     return await self.get(url, params={'side': side, 'startTime': start_time})
+
+  async def fetch_sleep(self, side: PodSide) -> list[dict[str, Any]]:
+    """
+    Fetch recent sleep records for a specific side of the Free Sleep device.
+
+    :param side: The side of the pod ("left" or "right").
+    :return: A list of sleep records, sorted oldest-first.
+    """
+    url = f'{self.host}{SLEEP_ENDPOINT}'
+    log.debug(f'Fetching sleep records for side "{side}" from device at "{url}".')
+
+    start_time = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+    result = await self.get(url, params={'side': side, 'startTime': start_time})
+    return result if isinstance(result, list) else []
+
+  async def fetch_server_status(self) -> dict[str, Any]:
+    """
+    Fetch the server/service health status from the Free Sleep device.
+
+    :return: A dictionary containing health statuses for each internal service.
+    """
+    url = f'{self.host}{SERVER_STATUS_ENDPOINT}'
+    log.debug(f'Fetching server status from device at "{url}".')
+
+    return await self.get(url)
+
+  async def fetch_schedules(self) -> dict[str, Any]:
+    """
+    Fetch the full weekly schedule for both sides of the Free Sleep device.
+
+    :return: A dictionary containing schedules keyed by side and day of week.
+    """
+    url = f'{self.host}{SCHEDULES_ENDPOINT}'
+    log.debug(f'Fetching schedules from device at "{url}".')
+
+    return await self.get(url)
 
   async def fetch_presence(self) -> dict[str, Any]:
     """

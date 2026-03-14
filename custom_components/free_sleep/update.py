@@ -108,3 +108,4 @@ class FreeSleepUpdate(
   ) -> None:
     """Install the latest firmware update."""
     await self.pod.api.run_jobs(['update'])
+    await self.coordinator.async_request_refresh()

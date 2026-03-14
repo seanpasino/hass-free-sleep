@@ -26,6 +26,21 @@ from .constants import DOMAIN
 from .pod import Pod, Side
 
 
+def _service_running(server_status: dict, service_name: str) -> bool | None:
+  """Return True if named service is running, False if down, None if unknown."""
+  if not server_status:
+    return None
+  service = server_status.get(service_name)
+  if service is None:
+    return None
+  if isinstance(service, dict):
+    status = service.get('status', '')
+    return status in ('running', 'healthy', 'ok', 'up')
+  if isinstance(service, str):
+    return service in ('running', 'healthy', 'ok', 'up')
+  return bool(service)
+
+
 @dataclass(frozen=True)
 class FreeSleepBinarySensorDescription(BinarySensorEntityDescription):
   """A class that describes Free Sleep Pod binary sensor entities."""
@@ -35,7 +50,7 @@ class FreeSleepBinarySensorDescription(BinarySensorEntityDescription):
   icon_on: str | None = None
   icon_off: str | None = None
 
-  get_value: Callable[[dict[str, Any]], bool] | None = None
+  get_value: Callable[[dict[str, Any]], bool | None] | None = None
 
 
 POD_BINARY_SENSORS: tuple[FreeSleepBinarySensorDescription, ...] = (
@@ -57,6 +72,24 @@ POD_BINARY_SENSORS: tuple[FreeSleepBinarySensorDescription, ...] = (
     icon_off='mdi:water-check',
     get_value=lambda data: not data['status']['waterLevel'],
   ),
+  FreeSleepBinarySensorDescription(
+    name='Biometrics Stream',
+    key='biometrics_stream',
+    translation_key='biometrics_stream',
+    device_class=BinarySensorDeviceClass.RUNNING,
+    icon_on='mdi:heart-pulse',
+    icon_off='mdi:heart-pulse-off',
+    get_value=lambda data: _service_running(data.get('server_status', {}), 'biometrics'),
+  ),
+  FreeSleepBinarySensorDescription(
+    name='Database',
+    key='database',
+    translation_key='database',
+    device_class=BinarySensorDeviceClass.CONNECTIVITY,
+    icon_on='mdi:database-check',
+    icon_off='mdi:database-off',
+    get_value=lambda data: _service_running(data.get('server_status', {}), 'database'),
+  ),
 )
 
 
@@ -69,7 +102,7 @@ class FreeSleepSideBinarySensorDescription(BinarySensorEntityDescription):
   icon_on: str | None = None
   icon_off: str | None = None
 
-  get_value: Callable[[dict[str, Any]], bool] | None = None
+  get_value: Callable[[dict[str, Any]], bool | None] | None = None
 
 
 POD_SIDE_BINARY_SENSORS: tuple[FreeSleepSideBinarySensorDescription, ...] = (

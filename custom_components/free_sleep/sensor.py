@@ -7,16 +7,19 @@ for the Free Sleep Pod integration.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from aioesphomeapi import SensorStateClass
 from homeassistant.components.sensor import (
+  SensorDeviceClass,
   SensorEntity,
   SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
   PERCENTAGE,
+  UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -30,12 +33,38 @@ from .constants import DOMAIN
 from .pod import Pod, Side
 
 
+def _parse_dt(value: str | None) -> datetime | None:
+  """Parse an ISO datetime string, ensuring UTC timezone."""
+  if value is None:
+    return None
+  try:
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+      dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+  except (ValueError, TypeError):
+    return None
+
+
+def _sleep_duration_minutes(sleep_record: dict | None) -> int | None:
+  """Return minutes of the most recent sleep session, or None."""
+  if not sleep_record:
+    return None
+  entered = _parse_dt(sleep_record.get('entered_bed_at'))
+  if not entered:
+    return None
+  left = _parse_dt(sleep_record.get('left_bed_at'))
+  end = left if left else datetime.now(timezone.utc)
+  return round((end - entered).total_seconds() / 60)
+
+
 @dataclass(frozen=True)
 class FreeSleepSensorDescription(SensorEntityDescription):
   """A class that describes Free Sleep Pod sensor entities."""
 
   name: str
   state_class: SensorStateClass | None = None
+  requires_presence: bool = False
 
   get_value: Callable[[dict[str, Any]], StateType] | None = None
 
@@ -67,15 +96,37 @@ POD_SIDE_SENSORS: tuple[FreeSleepSensorDescription, ...] = (
     native_unit_of_measurement='bpm',
     state_class=SensorStateClass.MEASUREMENT,
     icon='mdi:heart-pulse',
+    requires_presence=True,
     get_value=lambda data: data['vitals']['avgHeartRate'],
+  ),
+  FreeSleepSensorDescription(
+    name='Min Heart Rate',
+    key='heart_rate_min',
+    translation_key='heart_rate_min',
+    native_unit_of_measurement='bpm',
+    state_class=SensorStateClass.MEASUREMENT,
+    icon='mdi:heart-pulse',
+    requires_presence=True,
+    get_value=lambda data: data['vitals'].get('minHeartRate'),
+  ),
+  FreeSleepSensorDescription(
+    name='Max Heart Rate',
+    key='heart_rate_max',
+    translation_key='heart_rate_max',
+    native_unit_of_measurement='bpm',
+    state_class=SensorStateClass.MEASUREMENT,
+    icon='mdi:heart-pulse',
+    requires_presence=True,
+    get_value=lambda data: data['vitals'].get('maxHeartRate'),
   ),
   FreeSleepSensorDescription(
     name='Respiration Rate',
     key='respiration_rate',
-    translation_key='respiration_rate',
+    translation_key='respiratory_rate',
     native_unit_of_measurement='breaths/min',
     state_class=SensorStateClass.MEASUREMENT,
     icon='mdi:lungs',
+    requires_presence=True,
     get_value=lambda data: data['vitals']['avgBreathingRate'],
   ),
   FreeSleepSensorDescription(
@@ -85,7 +136,38 @@ POD_SIDE_SENSORS: tuple[FreeSleepSensorDescription, ...] = (
     native_unit_of_measurement='ms',
     state_class=SensorStateClass.MEASUREMENT,
     icon='mdi:heart',
+    requires_presence=True,
     get_value=lambda data: data['vitals']['avgHRV'],
+  ),
+  FreeSleepSensorDescription(
+    name='Sleep Duration',
+    key='sleep_duration',
+    translation_key='sleep_duration',
+    native_unit_of_measurement=UnitOfTime.MINUTES,
+    device_class=SensorDeviceClass.DURATION,
+    state_class=SensorStateClass.MEASUREMENT,
+    icon='mdi:sleep',
+    get_value=lambda data: _sleep_duration_minutes(data.get('sleep')),
+  ),
+  FreeSleepSensorDescription(
+    name='Sleep Entry',
+    key='sleep_entry',
+    translation_key='sleep_entry',
+    device_class=SensorDeviceClass.TIMESTAMP,
+    icon='mdi:sleep',
+    get_value=lambda data: _parse_dt(
+      data['sleep'].get('entered_bed_at') if data.get('sleep') else None
+    ),
+  ),
+  FreeSleepSensorDescription(
+    name='Sleep Exit',
+    key='sleep_exit',
+    translation_key='sleep_exit',
+    device_class=SensorDeviceClass.TIMESTAMP,
+    icon='mdi:sleep-off',
+    get_value=lambda data: _parse_dt(
+      data['sleep'].get('left_bed_at') if data.get('sleep') else None
+    ),
   ),
 )
 
@@ -219,12 +301,16 @@ class FreeSleepSideSensor(
     """
     Get the native value of the sensor.
 
-    Returns None if presence has been absent for more than 5 minutes to
-    avoid displaying stale biometric data when no one is in bed.
+    For sensors with requires_presence=True, returns None when presence has
+    been absent for more than VITALS_STALE_MINUTES to avoid displaying stale
+    biometric data when no one is in bed.
 
-    :return: The sensor value, or None if presence is absent.
+    :return: The sensor value, or None if presence is required but absent.
     """
-    if not self.coordinator.is_vitals_valid(self.side.type):
+    if (
+      self.entity_description.requires_presence
+      and not self.coordinator.is_vitals_valid(self.side.type)
+    ):
       return None
 
     if self.entity_description.get_value:

@@ -28,6 +28,12 @@
   },
   "entity": {
     "binary_sensor": {
+      "biometrics_stream": {
+        "name": "Biometrics Stream"
+      },
+      "database": {
+        "name": "Database"
+      },
       "presence": {
         "name": "Presence"
       },
@@ -59,15 +65,39 @@
         "name": "LED Brightness"
       }
     },
+    "select": {
+      "temperature_format": {
+        "name": "Temperature Format",
+        "state": {
+          "celsius": "Celsius",
+          "fahrenheit": "Fahrenheit"
+        }
+      }
+    },
     "sensor": {
       "heart_rate": {
         "name": "Heart Rate"
+      },
+      "heart_rate_max": {
+        "name": "Max Heart Rate"
+      },
+      "heart_rate_min": {
+        "name": "Min Heart Rate"
       },
       "hrv": {
         "name": "HRV"
       },
       "respiratory_rate": {
         "name": "Respiratory Rate"
+      },
+      "sleep_duration": {
+        "name": "Sleep Duration"
+      },
+      "sleep_entry": {
+        "name": "Sleep Entry"
+      },
+      "sleep_exit": {
+        "name": "Sleep Exit"
       },
       "version": {
         "name": "Version"
@@ -79,6 +109,15 @@
     "switch": {
       "away_mode": {
         "name": "Away Mode"
+      },
+      "biometrics": {
+        "name": "Biometrics"
+      },
+      "disable_alarm_tonight": {
+        "name": "Disable Alarm Tonight"
+      },
+      "disable_temp_schedule_tonight": {
+        "name": "Disable Temp Schedule Tonight"
       },
       "prime_daily": {
         "name": "Prime Daily"
