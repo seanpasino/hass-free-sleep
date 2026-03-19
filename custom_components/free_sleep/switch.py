@@ -7,6 +7,7 @@ for the Free Sleep Pod integration.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from homeassistant.components.switch import (
@@ -108,6 +109,19 @@ POD_SWITCHES: tuple[FreeSleepSwitchDescription, ...] = (
   ),
 )
 
+def _is_override_active(expires_at: str) -> bool:
+  """Return True if a schedule override is currently active (expiresAt is in the future)."""
+  if not expires_at:
+    return False
+  try:
+    expiry = datetime.fromisoformat(expires_at)
+    if expiry.tzinfo is None:
+      expiry = expiry.replace(tzinfo=timezone.utc)
+    return expiry > datetime.now(timezone.utc)
+  except (ValueError, TypeError):
+    return False
+
+
 POD_SIDE_SWITCHES: tuple[FreeSleepSideSwitchDescription, ...] = (
   FreeSleepSideSwitchDescription(
     name='Away Mode',
@@ -126,7 +140,8 @@ POD_SIDE_SWITCHES: tuple[FreeSleepSideSwitchDescription, ...] = (
     device_class=SwitchDeviceClass.SWITCH,
     on_icon='mdi:alarm-off',
     off_icon='mdi:alarm',
-    get_value=lambda data: data['settings'].get('alarmOverrideDisabled', False),
+    get_value=lambda data: _is_override_active(
+      data['settings'].get('scheduleOverrides', {}).get('alarm', {}).get('expiresAt', '')),
     set_value=lambda pod, side, value: side.set_alarm_override_disabled(value),  # noqa: ARG005
   ),
   FreeSleepSideSwitchDescription(
@@ -136,7 +151,8 @@ POD_SIDE_SWITCHES: tuple[FreeSleepSideSwitchDescription, ...] = (
     device_class=SwitchDeviceClass.SWITCH,
     on_icon='mdi:thermometer-off',
     off_icon='mdi:thermometer',
-    get_value=lambda data: data['settings'].get('tempScheduleOverrideDisabled', False),
+    get_value=lambda data: _is_override_active(
+      data['settings'].get('scheduleOverrides', {}).get('temperatureSchedules', {}).get('expiresAt', '')),
     set_value=lambda pod, side, value: side.set_temp_schedule_override_disabled(value),  # noqa: ARG005
   ),
 )

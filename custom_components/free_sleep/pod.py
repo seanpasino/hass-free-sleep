@@ -1,5 +1,6 @@
 """Classes to represent a Free Sleep Pod device and its sides."""
 
+from datetime import datetime, timedelta, timezone
 from typing import Any, TypedDict, Unpack
 
 from homeassistant.config_entries import ConfigEntry
@@ -271,26 +272,43 @@ class Side:
     """
     Disable or re-enable tonight's alarm for this side.
 
+    Sets scheduleOverrides.alarm.expiresAt to a future timestamp (tomorrow
+    at noon UTC) when disabling, or clears it when re-enabling.
+
     :param disabled: True to disable tonight's alarm, False to re-enable.
     """
-    json_data = {self.type: {'alarmOverrideDisabled': disabled}}
+    expires_at = ''
+    if disabled:
+      tomorrow_noon = datetime.now(timezone.utc) + timedelta(hours=18)
+      expires_at = tomorrow_noon.isoformat()
+
+    json_data = {self.type: {'scheduleOverrides': {'alarm': {'expiresAt': expires_at}}}}
     await self.pod.api.update_settings(json_data)
 
     data = self.coordinator.data
-    data['settings'][self.type]['alarmOverrideDisabled'] = disabled
+    data['settings'][self.type]['scheduleOverrides']['alarm']['expiresAt'] = expires_at
     self.coordinator.async_set_updated_data(data)
 
   async def set_temp_schedule_override_disabled(self, disabled: bool) -> None:
     """
     Disable or re-enable tonight's temperature schedule for this side.
 
+    Sets scheduleOverrides.temperatureSchedules.expiresAt to a future
+    timestamp (tomorrow at noon UTC) when disabling, or clears it when
+    re-enabling.
+
     :param disabled: True to disable tonight's schedule, False to re-enable.
     """
-    json_data = {self.type: {'tempScheduleOverrideDisabled': disabled}}
+    expires_at = ''
+    if disabled:
+      tomorrow_noon = datetime.now(timezone.utc) + timedelta(hours=18)
+      expires_at = tomorrow_noon.isoformat()
+
+    json_data = {self.type: {'scheduleOverrides': {'temperatureSchedules': {'expiresAt': expires_at}}}}
     await self.pod.api.update_settings(json_data)
 
     data = self.coordinator.data
-    data['settings'][self.type]['tempScheduleOverrideDisabled'] = disabled
+    data['settings'][self.type]['scheduleOverrides']['temperatureSchedules']['expiresAt'] = expires_at
     self.coordinator.async_set_updated_data(data)
 
   class ScheduleOptions(TypedDict):
