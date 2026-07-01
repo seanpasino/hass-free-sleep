@@ -4,7 +4,7 @@ which is responsible for fetching and updating the device state periodically.
 """
 
 from asyncio import gather
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from logging import Logger
 from typing import Any, TypedDict
 
@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import FreeSleepAPI
-from .constants import PodSide, VITALS_STALE_MINUTES
+from .constants import PodSide
 from .logger import log
 
 
@@ -68,27 +68,7 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
     )
 
     self.api = api
-    self._presence_false_since: dict[str, datetime | None] = {
-      'left': None,
-      'right': None,
-    }
-
-  def is_vitals_valid(self, side: str, stale_after_minutes: int = VITALS_STALE_MINUTES) -> bool:
-    """
-    Returns True if vitals should be displayed for the given side.
-    Returns False if presence has been absent for more than stale_after_minutes,
-    which causes sensors to report None instead of stale historical values.
-    """
-    if self.data is None:
-      return False
-    present = self.data['presence'].get(side, {}).get('present', False)
-    if present:
-      return True
-    since = self._presence_false_since.get(side)
-    if since is None:
-      return False
-    elapsed_minutes = (datetime.now(timezone.utc) - since).total_seconds() / 60
-    return elapsed_minutes < stale_after_minutes
+    self.presence_false_since: dict[PodSide, datetime] = {}
 
   async def _async_update_data(self) -> PodState:
     """
@@ -143,14 +123,11 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       'right': presence.get('right', {}),
     }
 
-    # Track when each side's presence transitions to False so sensors can
-    # return None after a configurable absence period instead of stale data.
     for side in ('left', 'right'):
-      present = presence_dict[side].get('present', False)
-      if present:
-        self._presence_false_since[side] = None
-      elif self._presence_false_since[side] is None:
-        self._presence_false_since[side] = datetime.now(timezone.utc)
+      if presence_dict[side].get('present'):
+        self.presence_false_since.pop(side, None)
+      elif side not in self.presence_false_since:
+        self.presence_false_since[side] = datetime.now(UTC)
 
     # Fetch optional data with graceful fallback — failures here do not
     # prevent the core coordinator data from being returned.
@@ -182,6 +159,29 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       server_status=_safe(server_status_raw, {}),
       schedules=_safe(schedules_raw, {}),
     )
+
+  def is_vitals_valid(self, side: PodSide, grace_minutes: int = 5) -> bool:
+    """
+    Return True if vitals should be displayed for the given side.
+
+    Stays True for up to `grace_minutes` after presence is lost, so brief
+    detection gaps don't immediately blank the sensors.
+
+    :param side: The side of the pod ("left" or "right").
+    :param grace_minutes: How long to keep showing vitals after presence is
+      lost.
+    """
+    if self.data is None:
+      return False
+
+    if self.data['presence'][side].get('present'):
+      return True
+
+    since = self.presence_false_since.get(side)
+    if since is None:
+      return False
+
+    return datetime.now(UTC) - since < timedelta(minutes=grace_minutes)
 
 
 class FirmwareUpdateCoordinator(DataUpdateCoordinator[FirmwareState]):

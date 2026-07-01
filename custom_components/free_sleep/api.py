@@ -7,7 +7,7 @@ status and settings, as well as updating device configurations.
 
 from asyncio import Lock
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from aiohttp import ClientResponse, ClientSession
@@ -24,7 +24,6 @@ from .constants import (
   SETTINGS_ENDPOINT,
   SLEEP_ENDPOINT,
   VITALS_SUMMARY_ENDPOINT,
-  VITALS_WINDOW_MINUTES,
   PodSide,
 )
 from .logger import log
@@ -144,8 +143,14 @@ class FreeSleepAPI:
     url = f'{self.host}{VITALS_SUMMARY_ENDPOINT}'
     log.debug(f'Fetching vitals for side "{side}" from device at "{url}".')
 
-    start_time = (datetime.now(timezone.utc) - timedelta(minutes=VITALS_WINDOW_MINUTES)).isoformat()
-    return await self.get(url, params={'side': side, 'startTime': start_time})
+    start_time = datetime.now(UTC) - timedelta(minutes=5)
+    return await self.get(
+      url,
+      params={
+        'side': side,
+        'startTime': start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+      },
+    )
 
   async def fetch_sleep(self, side: PodSide) -> list[dict[str, Any]]:
     """
@@ -157,7 +162,7 @@ class FreeSleepAPI:
     url = f'{self.host}{SLEEP_ENDPOINT}'
     log.debug(f'Fetching sleep records for side "{side}" from device at "{url}".')
 
-    start_time = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+    start_time = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
     result = await self.get(url, params={'side': side, 'startTime': start_time})
     return result if isinstance(result, list) else []
 

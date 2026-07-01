@@ -302,8 +302,8 @@ class FreeSleepSideSensor(
     Get the native value of the sensor.
 
     For sensors with requires_presence=True, returns None when presence has
-    been absent for more than VITALS_STALE_MINUTES to avoid displaying stale
-    biometric data when no one is in bed.
+    been absent beyond the grace window to avoid displaying stale biometric
+    data when no one is in bed.
 
     :return: The sensor value, or None if presence is required but absent.
     """
