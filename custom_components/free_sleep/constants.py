@@ -18,7 +18,7 @@ PRESENCE_ENDPOINT: Final = '/api/metrics/presence'
 SLEEP_ENDPOINT: Final = '/api/metrics/sleep'
 SERVER_STATUS_ENDPOINT: Final = '/api/serverStatus'
 
-SERVER_INFO_URL: Final = 'https://raw.githubusercontent.com/throwaway31265/free-sleep/refs/heads/main/server/src/serverInfo.json'
+SERVER_INFO_URL: Final = 'https://raw.githubusercontent.com/seanpasino/free-sleep/refs/heads/seanpasino/personal/server/src/serverInfo.json'
 
 EIGHT_SLEEP_MIN_TEMPERATURE_F: Final = 55
 EIGHT_SLEEP_MAX_TEMPERATURE_F: Final = 110
