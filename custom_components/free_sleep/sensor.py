@@ -19,6 +19,9 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
   PERCENTAGE,
+  EntityCategory,
+  UnitOfInformation,
+  UnitOfTemperature,
   UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
@@ -69,6 +72,20 @@ class FreeSleepSensorDescription(SensorEntityDescription):
   get_value: Callable[[dict[str, Any]], StateType] | None = None
 
 
+def _get(data: dict[str, Any] | None, *path: str) -> Any:
+  """Walk nested dicts, returning None as soon as a key is missing."""
+  for key in path:
+    if not isinstance(data, dict):
+      return None
+    data = data.get(key)
+  return data
+
+
+def _percent(fraction: Any) -> float | None:
+  """-1..1 hub output as a rounded percentage."""
+  return round(fraction * 100) if isinstance(fraction, (int, float)) else None
+
+
 POD_SENSORS: tuple[FreeSleepSensorDescription, ...] = (
   FreeSleepSensorDescription(
     name='Version',
@@ -85,6 +102,70 @@ POD_SENSORS: tuple[FreeSleepSensorDescription, ...] = (
     state_class=SensorStateClass.MEASUREMENT,
     icon='mdi:wifi',
     get_value=lambda data: data['status']['wifiStrength'],
+  ),
+  FreeSleepSensorDescription(
+    name='Room Temperature',
+    key='room_temperature',
+    translation_key='room_temperature',
+    native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    state_class=SensorStateClass.MEASUREMENT,
+    suggested_display_precision=1,
+    get_value=lambda data: _get(data.get('telemetry'), 'cover', 'roomF'),
+  ),
+  FreeSleepSensorDescription(
+    name='Humidity',
+    key='humidity',
+    translation_key='humidity',
+    native_unit_of_measurement=PERCENTAGE,
+    device_class=SensorDeviceClass.HUMIDITY,
+    state_class=SensorStateClass.MEASUREMENT,
+    suggested_display_precision=0,
+    get_value=lambda data: _get(data.get('telemetry'), 'cover', 'humidity'),
+  ),
+  FreeSleepSensorDescription(
+    name='Hub Air Temperature',
+    key='hub_air_temperature',
+    translation_key='hub_air_temperature',
+    native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    state_class=SensorStateClass.MEASUREMENT,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    suggested_display_precision=1,
+    get_value=lambda data: _get(data.get('telemetry'), 'hub', 'airF'),
+  ),
+  FreeSleepSensorDescription(
+    name='Heatsink Temperature',
+    key='heatsink_temperature',
+    translation_key='heatsink_temperature',
+    native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    state_class=SensorStateClass.MEASUREMENT,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    suggested_display_precision=1,
+    get_value=lambda data: _get(data.get('telemetry'), 'hub', 'heatsinkF'),
+  ),
+  FreeSleepSensorDescription(
+    name='Processor Temperature',
+    key='cpu_temperature',
+    translation_key='cpu_temperature',
+    native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    state_class=SensorStateClass.MEASUREMENT,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    suggested_display_precision=0,
+    get_value=lambda data: _get(data.get('telemetry'), 'system', 'cpuC'),
+  ),
+  FreeSleepSensorDescription(
+    name='Storage Free',
+    key='storage_free',
+    translation_key='storage_free',
+    native_unit_of_measurement=UnitOfInformation.GIGABYTES,
+    device_class=SensorDeviceClass.DATA_SIZE,
+    state_class=SensorStateClass.MEASUREMENT,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    suggested_display_precision=1,
+    get_value=lambda data: _get(data.get('telemetry'), 'system', 'storageFreeGB'),
   ),
 )
 
@@ -168,6 +249,77 @@ POD_SIDE_SENSORS: tuple[FreeSleepSensorDescription, ...] = (
     get_value=lambda data: _parse_dt(
       data['sleep'].get('left_bed_at') if data.get('sleep') else None
     ),
+  ),
+  FreeSleepSensorDescription(
+    name='Bed Temperature',
+    key='bed_temperature',
+    translation_key='bed_temperature',
+    native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    state_class=SensorStateClass.MEASUREMENT,
+    suggested_display_precision=1,
+    icon='mdi:bed-outline',
+    get_value=lambda data: _get(data.get('telemetry'), 'cover', 'bedF'),
+  ),
+  FreeSleepSensorDescription(
+    name='Water Temperature',
+    key='water_temperature',
+    translation_key='water_temperature',
+    native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    state_class=SensorStateClass.MEASUREMENT,
+    suggested_display_precision=1,
+    icon='mdi:water-thermometer',
+    get_value=lambda data: _get(data.get('telemetry'), 'hub', 'waterF'),
+  ),
+  FreeSleepSensorDescription(
+    name='Hub Output',
+    key='hub_output',
+    translation_key='hub_output',
+    native_unit_of_measurement=PERCENTAGE,
+    state_class=SensorStateClass.MEASUREMENT,
+    icon='mdi:heat-pump-outline',
+    get_value=lambda data: _percent(_get(data.get('telemetry'), 'hub', 'output')),
+  ),
+  FreeSleepSensorDescription(
+    name='Learned Offset',
+    key='learned_offset',
+    translation_key='learned_offset',
+    # A temperature difference: no temperature device class, which would convert it as an absolute
+    native_unit_of_measurement='°F',
+    state_class=SensorStateClass.MEASUREMENT,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    suggested_display_precision=1,
+    icon='mdi:delta',
+    get_value=lambda data: _get(data.get('telemetry'), 'controls', 'offsetF'),
+  ),
+  FreeSleepSensorDescription(
+    name='Pump Speed',
+    key='pump_speed',
+    translation_key='pump_speed',
+    native_unit_of_measurement='rpm',
+    state_class=SensorStateClass.MEASUREMENT,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    icon='mdi:pump',
+    get_value=lambda data: _get(data.get('telemetry'), 'hub', 'pumpRpm'),
+  ),
+  FreeSleepSensorDescription(
+    name='Last Night On Target',
+    key='last_night_on_target',
+    translation_key='last_night_on_target',
+    native_unit_of_measurement=PERCENTAGE,
+    icon='mdi:bullseye-arrow',
+    get_value=lambda data: _get(data.get('last_night'), 'onTargetPercent'),
+  ),
+  FreeSleepSensorDescription(
+    name='Last Night Bed Average',
+    key='last_night_bed_average',
+    translation_key='last_night_bed_average',
+    native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+    device_class=SensorDeviceClass.TEMPERATURE,
+    suggested_display_precision=1,
+    icon='mdi:bed-clock',
+    get_value=lambda data: _get(data.get('last_night'), 'bedAvgF'),
   ),
 )
 

@@ -20,6 +20,8 @@ from .constants import (
   SCHEDULES_ENDPOINT,
   SERVER_INFO_URL,
   SERVER_STATUS_ENDPOINT,
+  TELEMETRY_ENDPOINT,
+  NIGHTS_ENDPOINT,
   SERVICES_ENDPOINT,
   SETTINGS_ENDPOINT,
   SLEEP_ENDPOINT,
@@ -174,6 +176,31 @@ class FreeSleepAPI:
     """
     url = f'{self.host}{SERVER_STATUS_ENDPOINT}'
     log.debug(f'Fetching server status from device at "{url}".')
+
+    return await self.get(url)
+
+  async def fetch_telemetry(self) -> dict[str, Any]:
+    """
+    Fetch one snapshot of every sensor and I/O value (cover probes, water, hub,
+    controls, Pod system figures). Needs the personal free-sleep fork.
+
+    :return: The telemetry snapshot.
+    """
+    url = f'{self.host}{TELEMETRY_ENDPOINT}'
+    log.debug(f'Fetching telemetry from device at "{url}".')
+
+    return await self.get(url)
+
+  async def fetch_nights(self, side: PodSide) -> list[dict[str, Any]]:
+    """
+    Fetch the nightly bed temperature summaries for a side, newest first.
+    Needs the personal free-sleep fork.
+
+    :param side: The side of the pod ("left" or "right").
+    :return: A list of night summaries.
+    """
+    url = f'{self.host}{NIGHTS_ENDPOINT}?side={side}&days=3'
+    log.debug(f'Fetching nights from device at "{url}".')
 
     return await self.get(url)
 

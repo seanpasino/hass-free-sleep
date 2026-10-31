@@ -17,6 +17,8 @@ VITALS_SUMMARY_ENDPOINT: Final = '/api/metrics/vitals/summary'
 PRESENCE_ENDPOINT: Final = '/api/metrics/presence'
 SLEEP_ENDPOINT: Final = '/api/metrics/sleep'
 SERVER_STATUS_ENDPOINT: Final = '/api/serverStatus'
+TELEMETRY_ENDPOINT: Final = '/api/telemetry'
+NIGHTS_ENDPOINT: Final = '/api/metrics/nights'
 
 SERVER_INFO_URL: Final = 'https://raw.githubusercontent.com/seanpasino/free-sleep/refs/heads/seanpasino/personal/server/src/serverInfo.json'
 

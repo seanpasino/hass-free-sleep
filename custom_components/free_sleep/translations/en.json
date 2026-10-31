@@ -42,6 +42,9 @@
       },
       "water_level": {
         "name": "Water Level"
+      },
+      "pump_problem": {
+        "name": "Pump Problem"
       }
     },
     "button": {
@@ -104,6 +107,45 @@
       },
       "wifi_strength": {
         "name": "WiFi Strength"
+      },
+      "room_temperature": {
+        "name": "Room Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "hub_air_temperature": {
+        "name": "Hub Air Temperature"
+      },
+      "heatsink_temperature": {
+        "name": "Heatsink Temperature"
+      },
+      "cpu_temperature": {
+        "name": "Processor Temperature"
+      },
+      "storage_free": {
+        "name": "Storage Free"
+      },
+      "bed_temperature": {
+        "name": "Bed Temperature"
+      },
+      "water_temperature": {
+        "name": "Water Temperature"
+      },
+      "hub_output": {
+        "name": "Hub Output"
+      },
+      "learned_offset": {
+        "name": "Learned Offset"
+      },
+      "pump_speed": {
+        "name": "Pump Speed"
+      },
+      "last_night_on_target": {
+        "name": "Last Night On Target"
+      },
+      "last_night_bed_average": {
+        "name": "Last Night Bed Average"
       }
     },
     "switch": {

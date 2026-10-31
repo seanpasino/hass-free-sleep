@@ -1,6 +1,6 @@
 """Classes to represent a Free Sleep Pod device and its sides."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, TypedDict, Unpack
 
 from homeassistant.config_entries import ConfigEntry
@@ -227,6 +227,8 @@ class Side:
       'presence': data['presence'][self.type],
       'sleep': data['sleep'].get(self.type),
       'schedule': data['schedules'].get(self.type, {}),
+      'telemetry': _telemetry_side(data.get('telemetry') or {}, self.type),
+      'last_night': _last_night(data.get('nights', {}).get(self.type) or []),
     }
 
   async def set_active(self, active: bool) -> None:
@@ -335,3 +337,32 @@ class Side:
       f'Setting schedule for side "{self.type}" with data "{json_data}".'
     )
     await self.pod.api.update_schedule(json_data)
+
+
+def _telemetry_side(telemetry: dict[str, Any], side: str) -> dict[str, Any]:
+  """
+  Pick one side's parts out of a telemetry snapshot.
+
+  :param telemetry: The /api/telemetry snapshot (may be empty).
+  :param side: The side of the pod ("left" or "right").
+  :return: {'cover': ..., 'hub': ..., 'controls': ...} for that side, each {} if missing.
+  """
+  return {
+    part: (telemetry.get(part) or {}).get('sides', {}).get(side, {})
+    for part in ('cover', 'hub', 'controls')
+  }
+
+
+def _last_night(nights: list[dict[str, Any]]) -> dict[str, Any] | None:
+  """
+  The most recent finished night (the newest one if it ended over 30 minutes
+  ago, else the one before it).
+
+  :param nights: Nightly summaries, newest first.
+  :return: The night summary, or None.
+  """
+  now_ms = datetime.now(UTC).timestamp() * 1000
+  for night in nights:
+    if now_ms - night.get('to', now_ms) > 30 * 60 * 1000:
+      return night
+  return None

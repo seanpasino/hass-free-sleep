@@ -32,6 +32,8 @@ class PodState(TypedDict):
   sleep: dict[PodSide, Any]         # Most recent sleep record per side (or None)
   server_status: dict[str, Any]     # Internal service health statuses
   schedules: dict[PodSide, Any]     # Full weekly schedule per side
+  telemetry: dict[str, Any]         # /api/telemetry snapshot (personal fork; {} if unavailable)
+  nights: dict[PodSide, Any]        # Nightly summaries per side, newest first ([] if unavailable)
 
 
 class FirmwareState(TypedDict):
@@ -136,9 +138,15 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       self.api.fetch_sleep('right'),
       self.api.fetch_server_status(),
       self.api.fetch_schedules(),
+      self.api.fetch_telemetry(),
+      self.api.fetch_nights('left'),
+      self.api.fetch_nights('right'),
       return_exceptions=True,
     )
-    sleep_left_raw, sleep_right_raw, server_status_raw, schedules_raw = optional
+    (
+      sleep_left_raw, sleep_right_raw, server_status_raw, schedules_raw,
+      telemetry_raw, nights_left_raw, nights_right_raw,
+    ) = optional
 
     def _safe(val: Any, default: Any) -> Any:
       return default if isinstance(val, BaseException) else val
@@ -158,6 +166,8 @@ class FreeSleepCoordinator(DataUpdateCoordinator[PodState]):
       },
       server_status=_safe(server_status_raw, {}),
       schedules=_safe(schedules_raw, {}),
+      telemetry=_safe(telemetry_raw, {}),
+      nights={'left': _safe(nights_left_raw, []), 'right': _safe(nights_right_raw, [])},
     )
 
   def is_vitals_valid(self, side: PodSide, grace_minutes: int = 5) -> bool:

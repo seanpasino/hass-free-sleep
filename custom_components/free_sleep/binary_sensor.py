@@ -70,7 +70,8 @@ POD_BINARY_SENSORS: tuple[FreeSleepBinarySensorDescription, ...] = (
     device_class=BinarySensorDeviceClass.PROBLEM,
     icon_on='mdi:water-remove',
     icon_off='mdi:water-check',
-    get_value=lambda data: not data['status']['waterLevel'],
+    # The Pod reports "true"/"false" as text, which `not` would always read as truthy
+    get_value=lambda data: data['status']['waterLevel'] not in (True, 'true'),
   ),
   FreeSleepBinarySensorDescription(
     name='Biometrics Stream',
@@ -114,6 +115,20 @@ POD_SIDE_BINARY_SENSORS: tuple[FreeSleepSideBinarySensorDescription, ...] = (
     icon_on='mdi:bed',
     icon_off='mdi:bed-empty',
     get_value=lambda data: data['presence']['present'],
+  ),
+  FreeSleepSideBinarySensorDescription(
+    name='Pump Problem',
+    key='pump_problem',
+    translation_key='pump_problem',
+    device_class=BinarySensorDeviceClass.PROBLEM,
+    icon_on='mdi:pump-off',
+    icon_off='mdi:pump',
+    # The side is on but its pump isn't turning (None without telemetry)
+    get_value=lambda data: (
+      None
+      if not data.get('telemetry', {}).get('hub') or data['telemetry']['hub'].get('pumpRpm') is None
+      else bool(data['telemetry']['controls'].get('isOn')) and data['telemetry']['hub']['pumpRpm'] == 0
+    ),
   ),
 )
 
