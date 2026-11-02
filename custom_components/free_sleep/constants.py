@@ -20,7 +20,7 @@ SERVER_STATUS_ENDPOINT: Final = '/api/serverStatus'
 TELEMETRY_ENDPOINT: Final = '/api/telemetry'
 NIGHTS_ENDPOINT: Final = '/api/metrics/nights'
 
-SERVER_INFO_URL: Final = 'https://raw.githubusercontent.com/seanpasino/free-sleep/refs/heads/seanpasino/personal/server/src/serverInfo.json'
+SERVER_INFO_URL: Final = 'https://raw.githubusercontent.com/seanpassino/free-sleep/refs/heads/seanpasino/personal/server/src/serverInfo.json'
 
 EIGHT_SLEEP_MIN_TEMPERATURE_F: Final = 55
 EIGHT_SLEEP_MAX_TEMPERATURE_F: Final = 110
